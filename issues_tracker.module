@@ -1,0 +1,172 @@
+<?php
+
+/**
+ * @file
+ * This file will do most of the handling for handling issues.
+ *
+ * @author brianmcveigh
+ *
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function issues_tracker_menu() {
+
+  $items['issues-tracker'] = array(
+    'title' => 'Issues Tracker | Home',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('issues_tracker_home_page'),
+    'access callback' => TRUE,
+  );
+
+  $items['issues-tracker/create'] = array(
+    'title' => 'Issues Tracker | Create an Issue',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('issues_tracker_create_issue'),
+    'access callback' => TRUE,
+  );
+
+  $items['issues-tracker/view/%'] = array(
+    'title' => 'Issues Tracker | View Issue',
+    'page callback' => 'issues_tracker_view_issue',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+  );
+
+  return $items;
+}
+
+/**
+ * The main callback for this module. This page will display all
+ * of the issues.
+ */
+function issues_tracker_home_page($form, &$form_state) {
+  
+  $header = array('Issue ID', 'Issue Title', 'Issue Description', 'Issue Status', 'Actions');
+  $rows = array();
+
+  $query = db_select('issues_tracker_issues', 'i')
+    ->fields('i')
+    ->execute();
+
+  $result = $query->fetchAll();
+
+  foreach ($result as $r) {
+  	$rows[] = array($r->issue_id, $r->issue_title, $r->issue_desc, $r->issue_status, l('View', 'issues-tracker/view/' . $r->issue_id));
+  }
+
+  $form['create-issue'] = array(
+    '#type' => 'submit',
+    '#value' => 'Create an Issue',
+  );
+  $form['issues-table'] = array(
+    '#type' => 'markup',
+    '#markup' => theme('table', array('header' => $header, 'rows' => $rows)),
+  );
+
+  $form['#submit'][] = 'issues_tracker_submit';
+
+  return $form;
+}
+
+/**
+ * Page callback to create an issue.
+ */
+function issues_tracker_create_issue($form, &$form_state) {
+  
+  $query = db_select('issues_tracker_status_descs', 'i')->fields('i', array('status_title'))->execute();
+
+  $result = $query->fetchAll();
+
+  $status_options = array();
+  
+  foreach ($result as $r) {
+    $status_options[] = t($r->status_title);
+  }
+
+  $form['issue-title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Issue Title'),
+    '#required' => TRUE,
+  );
+  $form['issue-desc'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Issue Description'),
+    '#required' => TRUE,
+  );
+  $form['issue-steps-to-reproduce'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Steps to Reproduce'),
+    '#required' => TRUE,
+  );
+  $form['issue-status'] = array(
+    '#title' => t('What is the issue status?'),
+    '#type' => 'radios',
+    '#options' => $status_options,
+    '#default_value' => 1,
+    '#required' => TRUE,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit Issue'),
+  );
+
+  $form['#submit'][] = 'issues_tracker_submit';
+
+  return $form;
+}
+
+/**
+ * Page callback to view one issue.
+ *
+ * @param int $issue_id
+ *   The issue id of the issue to be loaded.
+ * 
+ * @return
+ *   The detailed issue.
+ */
+function issues_tracker_view_issue($issue_id) {
+  $output = '';
+
+  $result = db_query("SELECT * FROM {issues_tracker_issues} AS i INNER JOIN {issues_tracker_status_descs} AS sd ON i.issue_status=sd.status_id WHERE i.issue_id=$issue_id")->fetchAssoc();
+
+  $output .= '<p><strong>Issue ID</strong>: ' . $issue_id . '</p>';
+  $output .= '<p><strong>Issue Title</strong>:<br />' . $result['issue_title'] . '</p>';
+  $output .= '<p><strong>Issue Description</strong>:<br />' . $result['issue_desc'] . '</p>';
+  $output .= '<p><strong>Steps to Reproduce</strong>:<br />' . $result['issue_steps'] . '</p>';
+  $output .= '<p><strong>Status</strong>:<br />' . $result['status_title'] . '</p>';
+
+  return $output;
+}
+
+/**
+ * Submit handler for issues tracker.
+ */
+function issues_tracker_submit($form, &$form_state) {
+  switch ($form['#form_id']) {
+  	case 'issues_tracker_home_page':
+      $form_state['redirect'] = 'issues-tracker/create';
+  	  break;
+  	case 'issues_tracker_create_issue':
+  	  if (isset($form_state['values'])) {
+  	    $issue = db_insert('issues_tracker_issues')
+		  ->fields(array(
+		    'issue_title' => $form_state['values']['issue-title'],
+		    'issue_steps' => $form_state['values']['issue-steps-to-reproduce'],
+		    'issue_desc' => $form_state['values']['issue-desc'],
+		    'issue_status' => $form_state['values']['issue-status'],
+		  ))
+		  ->execute();
+
+		if ($issue) {
+		  $form_state['redirect'] = 'issues-tracker';
+		  drupal_set_message('Issue created.');
+		}
+		else {
+		  drupal_set_message('Could not create issue.', 'error');
+		}
+  	  }
+  	  break;
+  }
+}

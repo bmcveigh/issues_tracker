@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * @file
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function issues_tracker_schema() {
+
+  $schema['issues_tracker_issues'] = array(
+    'description' => 'This table will contain all issues.',
+    'fields' => array(
+      'issue_id' => array(
+        'description' => 'The primary key for this table.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'issue_title' => array(
+        'description' => 'The title of the issue.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'issue_desc' => array(
+        'description' => 'The description of the issue.',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('issue_id'),
+  );
+
+  $schema['issues_tracker_status_descs'] = array(
+    'description' => 'This table defines each status.',
+    'fields' => array(
+      'status_id' => array(
+        'description' => 'The id of the status. This is the PK.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'status_title' => array(
+        'description' => 'The title of a status.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'status_desc' => array(
+        'description' => 'The description of a status.',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('status_id'),
+  );
+
+
+  return $schema;
+}
